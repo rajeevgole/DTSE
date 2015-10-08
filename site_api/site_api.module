@@ -1,0 +1,95 @@
+<?php
+
+/**
+ * @file
+ *
+ * Perform the following functionalities:
+ * A new form text field named "Site API Key" needs to be added to the "Site Information" form with the default value of “No API Key yet”.
+ * When this form is submitted, the value that the user entered for this field should be saved as the system variable named "siteapikey".
+ * A Drupal message should inform the user that the Site API Key has been saved with that value.
+ * When this form is visited after the "Site API Key" is saved, the field should be populated with the correct value.
+ * The text of the "Save configuration" button should change to "Update Configuration".
+ * This module also provides a URL that responds with a JSON representation of a given node with the content type "page" only if the previously submitted API Key and a node id (nid) of an appropriate node are present, otherwise it will respond with "access denied".
+ */
+
+/**
+ * Implements hook_help().
+ */
+function site_api_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#site_api':
+      $output = '';
+      $output .= '<p>' . t('A new form text field named "Site API Key" needs to be added to the "Site Information" form with the default value of “No API Key yet”.') . '</p>';
+      $output .= '<p>' . t('When this form is submitted, the value that the user entered for this field should be saved as the system variable named "siteapikey".') . '</p>';
+      $output .= '<p>' . t('A Drupal message should inform the user that the Site API Key has been saved with that value.') . '</p>';
+      $output .= '<p>' . t('When this form is visited after the "Site API Key" is saved, the field should be populated with the correct value.') . '</p>';
+      $output .= '<p>' . t('The text of the "Save configuration" button should change to "Update Configuration".') . '</p>';
+      $output .= '<p>' . t('This module also provides a URL that responds with a JSON representation of a given node with the content type "page" only if the previously submitted API Key and a node id (nid) of an appropriate node are present, otherwise it will respond with "access denied".') . '</p>';
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_menu().
+ *
+ * Provides a URL that responds with JSON
+ */
+function site_api_menu() {
+  $items['page_json/foo/%node'] = array(
+    'title' => 'Page Json',
+    'page callback' => 'page_json_output',
+    'page arguments' => array(2),
+    'access callback' => '_page_json_access_call',
+    'access arguments' => array(2),
+  );
+  return $items;
+}
+
+/**
+ * Menu item access callback
+ *
+ * Check given node with the content type "page" and submitted API Key and a node id (nid) of an appropriate node are present.
+ */
+function _page_json_access_call($node) {
+  $site_api_key = variable_get('siteapikey', "No API Key yet");
+  if (is_object($node) && $node->type == 'page' && (strtoupper($site_api_key) != 'NO API KEY YET')) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Adds the site api key field
+ */
+function site_api_form_system_site_information_settings_alter(&$form, $form_state) {
+  $form['site_information']['siteapikey'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Site API Key'),
+    '#default_value' => variable_get('siteapikey', "No API Key yet"),
+  );
+  $site_api_key = variable_get('siteapikey');
+  if (!empty($site_api_key) && (strtoupper($site_api_key) != 'NO API KEY YET')) {
+    $form['actions']['submit']['#value'] = 'Update Configuration';
+  }
+  $form['#submit'][] = 'site_api_form_submit';
+}
+
+/**
+ * Form submission handler for system_site_information_settings.
+ */
+function site_api_form_submit($form, &$form_state) {
+  $siteapikey = $form_state['values']['siteapikey'];
+  if (strtoupper($siteapikey) != 'NO API KEY YET') {
+    drupal_set_message(t('Site API Key has been saved @value', array('@value' => $siteapikey)), 'status');
+  }
+}
+
+/**
+ * Menu callback for page_json/FOOBAR12345/%node.
+ */
+function page_json_output($node) {
+  return drupal_json_output($node);
+}
+
